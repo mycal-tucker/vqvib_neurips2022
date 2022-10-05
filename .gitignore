@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.gitmodules
+.idea
+ib_color_naming
+saved_data
+models/IB_color_naming_model/model.pkl
