@@ -259,8 +259,8 @@ if __name__ == '__main__':
     np.random.seed(seed)
     raw_data, data = get_data()
 
-    speaker_type = 'VQVIB'
-    # speaker_type = 'Onehot'
+    # speaker_type = 'VQVIB'
+    speaker_type = 'Onehot'
     # speaker_type = 'Proto'
     if speaker_type == 'VQVIB':
         speaker = VQ(feature_len, comm_dim, num_layers=3, num_protos=330)

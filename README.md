@@ -1,11 +1,17 @@
 # vqvib_neurips2022
 Codebase for VQ-VIB implementation and color experiments based on "Trading off Utility, Informativeness, and Complexity in Emergent Communication" NeurIPS 2022.
 
-The code in this repository will allow you to train agents (including VQ-VIB agents) in a color reference game.
+Below, we provide visualizations for the communication space of VQ-VIB agents (left), and how they discretize their input space (right).
+The top row corresponds to results from a color reference game, while the bottom row comes from training agents to navigate a particle world.
+In both environments, agents learn to discretize the space into increasingly coarse clusters as complexity decreases, and nearby vectors in the communication space encode similar meanings.
 
-|                             PCA of VQ-VIB Comm.                              |                        Modemaps of VQ-VIB color-naming                        |
-|:----------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|
-| ![alt text](saved_data/comm_pca.gif "Visualization of VQ-VIB communication") | ![alt text](saved_data/modemap.gif "Visualization of VQ-VIB color mode maps") |
+|                            PCA of VQ-VIB Comm.                             |                              Modemaps of VQ-VIB                               |
+|:--------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|
+|   ![alt text](gifs/comm_pca.gif "Visualization of VQ-VIB communication")   |    ![alt text](gifs/modemap.gif "Visualization of VQ-VIB color mode maps")    |
+| ![alt text](gifs/uniform_comm.gif "Visualization of VQ-VIB communication") | ![alt text](gifs/uniform_space.gif "Visualization of VQ-VIB color mode maps") |
+
+
+In this repo, we provide the minimal code to allow you to train agents (including VQ-VIB agents) in a color reference game, reproducing the complexity control from the top figures.
 
 # Getting Started
 
