@@ -13,5 +13,5 @@ class Team(nn.Module):
         comm, speaker_loss, info = self.speaker(speaker_x)
         full_listener_input = torch.hstack([comm, listener_x])
         prediction, _, _ = self.listener(full_listener_input)
-        r_mu, r_logvar = self.decoder(comm)
-        return prediction, speaker_loss, info, (r_mu, r_logvar)
+        recons = self.decoder(comm)
+        return prediction, speaker_loss, info, recons

@@ -2,14 +2,12 @@ import pickle
 
 
 class PerformanceMetrics:
-    def __init__(self, accuracies, capacities, recons, comm_accs, gnids, weights, clusters, label):
+    def __init__(self, accuracies, capacities, recons, informativeness, weights, label):
         self.accuracies = accuracies
         self.capacities = capacities
         self.recons = recons
-        self.comm_accs = comm_accs
-        self.gnids = gnids
+        self.informativeness = informativeness
         self.weights = weights
-        self.clusters = clusters
         self.label = label
 
     def to_file(self, path):

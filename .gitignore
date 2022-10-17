@@ -133,3 +133,5 @@ dmypy.json
 ib_color_naming
 saved_data
 models/IB_color_naming_model/model.pkl
+info.png
+utility.png

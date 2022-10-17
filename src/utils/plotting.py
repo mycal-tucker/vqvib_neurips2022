@@ -4,34 +4,31 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 import src.settings as settings
+from src.utils.helper_fns import get_complexity, nat_to_bit
+from ib_color_naming.src.figures import WCS_CHIPS
+from ib_color_naming.src.tools import lab2rgb
 
 
-def nat_to_bit(n):
-    return n / np.log(2)
-
-
-def plot_pca(all_data, coloring_data=None, legend=None):
-    markers = ["o", "x", "s", "D", "*"][:len(all_data)]
-    sizes = [20, 50]
-    fig, ax = plt.subplots()
-    for data_idx, data in enumerate(all_data):
-        if settings.pca is None:
-            settings.pca = PCA(n_components=2)
-            settings.pca.fit(data)
-        if data.shape[1] > 2:
-            transformed = settings.pca.transform(data)
-            # To actually see all the points around a cluster, we need to add noise to spread them out a tiny bit.
-            transformed = np.random.normal(transformed, 0.1)
-        else:
-            transformed = data
-        x = transformed[:, 0]
-        y = transformed[:, 1]
-        # Pull out coloring info
-        coloring = None if coloring_data is None else coloring_data[data_idx]
-        pcm = ax.scatter(x, y, s=sizes[data_idx], marker=markers[data_idx], c=coloring[:len(x)])
-        if legend is not None:
-            handles, labels = pcm.legend_elements(prop='colors')
-            ax.legend(handles, legend)
+def plot_pca(comms, coloring_data, legend=None, sizes=None, ax=None):
+    if ax is None:
+        _, ax = plt.subplots()
+    if settings.pca is None:
+        settings.pca = PCA(n_components=2)
+        settings.pca.fit(comms)
+    if comms.shape[1] > 2:
+        transformed = settings.pca.transform(comms)
+    else:
+        transformed = comms
+    s = 20 if sizes is None else sizes
+    pcm = ax.scatter(transformed[:, 0], transformed[:, 1], s=s, marker='o', c=coloring_data)
+    if legend is not None:
+        handles, labels = pcm.legend_elements(prop='colors')
+        ax.legend(handles, legend)
+    if settings.ax_limits is None:
+        settings.ax_limits = ax.get_xlim() + ax.get_ylim()
+    ax.set_xlim(settings.ax_limits[0] - 1, settings.ax_limits[1] + 1)
+    ax.set_ylim(settings.ax_limits[2] - 1, settings.ax_limits[3] + 1)
+    ax.title.set_text("a. Communication Vectors (2D PCA)")
 
 
 def plot_training_curve(metrics, base_path, ib_model=None):
@@ -62,10 +59,10 @@ def plot_training_curve(metrics, base_path, ib_model=None):
     plt.savefig(base_path + 'epoch_recons_loss.png')
     plt.close()
 
-    # Plot comm accuracy vs. complexity (all in bits)
+    # Plot informativness vs. complexity (all in bits)
     caps = [nat_to_bit(c) for c in metrics.capacities]
     # Communication accuracy is already in bits.
-    scatter = plt.scatter(caps, metrics.comm_accs, c=metrics.weights)
+    scatter = plt.scatter(caps, metrics.informativeness, c=metrics.weights)
     plt.xlabel("Complexity (bits)")
     plt.ylabel("Informativeness (bits)")
     cbar = plt.colorbar(scatter, format=tick.FormatStrFormatter('%.2f'))
@@ -75,68 +72,78 @@ def plot_training_curve(metrics, base_path, ib_model=None):
     plt.savefig(base_path + 'cap_acc_bits.png')
     plt.close()
 
-    # Plot gNID vs. complexity (in bits)
-    caps = [nat_to_bit(c) for c in metrics.capacities]
-    scatter = plt.scatter(caps, metrics.gnids, c=metrics.weights)
-    plt.xlim([0, 5.0])
-    plt.ylim([0, 1.0])
-    plt.xlabel("Complexity (bits)")
-    plt.ylabel("gNID")
-    cbar = plt.colorbar(scatter, format=tick.FormatStrFormatter('%.2f'))
-    cbar.set_label('KL Loss Weight', rotation=270, labelpad=15)
-    plt.savefig(base_path + 'gnids.png')
+
+def plot_many_runs(metric_objects, path, labels=None, ib_model=None, human_data=None):
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    human_comps = []
+    human_infos = []
+    for lang in human_data.all_langs():
+        lang_probs = human_data.lang_pW_C(lang)
+        comp = nat_to_bit(get_complexity(lang_probs, ib_model))
+        informativeness = ib_model.accuracy(lang_probs)  # Already in bits
+        human_comps.append(comp)
+        human_infos.append(informativeness)
+    plt.scatter(human_comps, human_infos, label='WCS Languages')
+    # Plot Informativeness vs. complexity
+    for i, metrics in enumerate(metric_objects):
+        caps = [nat_to_bit(c) for c in metrics.capacities]
+        label = metrics.label if labels is None else labels[i]
+        plt.scatter(caps, metrics.informativeness, label=label)
+    if ib_model is not None:
+        plt.plot(ib_model.IB_curve[0], ib_model.IB_curve[1], color='black')
+    plt.xlabel("Complexity (bits)", fontsize=20)
+    plt.ylabel("Informativeness (bits)", fontsize=20)
+    plt.legend(loc='lower right')
+    plt.savefig('info', transparent=True, bbox_inches='tight')
+    plt.tight_layout()
     plt.close()
 
-    # Number of clusters vs. Complexity
-    scatter = plt.scatter(caps, metrics.clusters, c=metrics.weights)
+    # Plot utility vs. complexity
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    for i, metrics in enumerate(metric_objects):
+        label = metrics.label if labels is None else labels[i]
+        caps = [nat_to_bit(c) for c in metrics.capacities]
+        scatter = plt.scatter(caps, metrics.accuracies, label=label)
+    plt.ylabel("Utility %")
     plt.xlabel("Complexity (bits)")
-    plt.ylabel("Num clusters")
-    cbar = plt.colorbar(scatter, format=tick.FormatStrFormatter('%.2f'))
-    cbar.set_label('KL Loss Weight', rotation=270, labelpad=15)
-    plt.savefig(base_path + 'cap_clusters.png')
+    plt.legend(loc='lower right')
+    plt.tight_layout()
+    plt.savefig('utility', transparent=True)
     plt.close()
 
 
-def plot_modemap(prob_array, ib_model, title, filename):
-    plt.figure(figsize=(19.3, 7.5))
+def plot_modemap(prob_array, ib_model, title, filename=None):
     ib_model.mode_map(prob_array)
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(filename)
-    print('basepath', filename)
-    epoch_num = filename.split('/')[-2]
-    print("epoch number", epoch_num)
-    new_root = '/'.join(filename.split('/')[:-2]) + '/'
-    print('new root', new_root)
-    plt.savefig(new_root + 'modemaps/' + epoch_num + '.png')
-    plt.close()
+    if filename is not None:
+        plt.savefig(filename, dpi=300)
 
 
-def plot_color_comms(cielab, color_to_comm, color_to_rgb, base_path):
-    cielab = np.vstack(cielab)
-    comms = np.vstack(color_to_comm)
-    rgbs = np.vstack(color_to_rgb)
-    # Come up with some sorting order. Below are two options.
-    sorting = np.argsort(cielab, axis=0)[:, 1]  # Which of L*A*B* you want to use.
-    # sorting = np.argsort(rgbs, axis=0)[:, 0, 1]  # By greenness
-    comms = comms[sorting]
-    rgbs = rgbs[sorting]
-    plot_pca([comms], coloring_data=[rgbs])
-    plt.savefig(base_path + 'pca.png')
-    epoch_num = base_path.split('/')[-2]
-    plt.savefig(base_path + '../pca/' + epoch_num + '.png')
-    plt.close()
-
-    # And a comms heatmap to show how close vectors for colors are to each other.
-    comm_dists = np.zeros((len(comms), len(comms)))
-    color_dists = np.zeros((len(comms), len(comms)))
-    np.set_printoptions(precision=2)
-    for i, c1 in enumerate(comms):
-        for j, c2 in enumerate(comms):
-            comm_dists[i, j] = np.linalg.norm(c1 - c2)
-            color_dists[i, j] = np.linalg.norm(rgbs[i] - rgbs[j])
-    plt.imshow(comm_dists[:10, :10], cmap='hot', interpolation='nearest')
-    plt.savefig(base_path + 'small_heatmap.png')
-    plt.imshow(comm_dists, cmap='hot', interpolation='nearest')
-    plt.savefig(base_path + 'heatmap.png')
-    plt.close()
+def plot_comms_pca(pw_m, speaker, save_path=None, ax=None):
+    n = pw_m.shape[0]
+    pM = np.ones((n, 1)) / n
+    qMW = pw_m * pM
+    pW = qMW.sum(axis=0)[:, None]
+    pC_W = qMW.T / (pW + 1e-20)
+    avg_color_per_comm_id = lab2rgb(pC_W.dot(WCS_CHIPS))
+    # Now just look up the actual comms associated with each word
+    comm_list = []
+    coloring_list = []
+    sizes = []
+    for comm_id in range(speaker.num_tokens):
+        comm_prob = pW[comm_id]
+        if comm_prob < 0.0001:
+            continue  # Skip comm id that almost never shows up.
+        avg_color = avg_color_per_comm_id[comm_id]
+        vec = speaker.vq_layer.prototypes[comm_id].detach().cpu().numpy()
+        for _ in range(int(comm_prob * 100)):  # Repeat the vectors proportional to likelihood.
+            comm_list.append(vec)
+            coloring_list.append(avg_color)
+            sizes.append(2000 * comm_prob)  # And rescale plotted points proportional to likelihood.
+    comm_list = np.vstack(comm_list)
+    coloring_list = np.vstack(coloring_list)
+    plot_pca(comm_list, coloring_list, sizes=sizes, ax=ax)
+    plt.savefig(save_path + '/pca.pdf')

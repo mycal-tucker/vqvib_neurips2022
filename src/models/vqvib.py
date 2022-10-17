@@ -8,11 +8,11 @@ from src.models.network_utils import reparameterize
 
 
 class VQLayer(nn.Module):
-    def __init__(self, num_protos, latent_dim, beta=0.25):
+    def __init__(self, num_protos, latent_dim, alpha=0.25):
         super(VQLayer, self).__init__()
         self.num_protos = num_protos
         self.latent_dim = latent_dim
-        self.beta = beta
+        self.alpha = alpha
         self.prototypes = nn.Parameter(data=torch.Tensor(num_protos, latent_dim))
         self.prototypes.data.uniform_(-1 / self.num_protos, 1 / self.num_protos)
 
@@ -29,13 +29,13 @@ class VQLayer(nn.Module):
         # Compute the VQ Losses
         commitment_loss = F.mse_loss(quantized_latents.detach(), latents)
         embedding_loss = F.mse_loss(quantized_latents, latents.detach())
-        vq_loss = commitment_loss * self.beta + embedding_loss
+        vq_loss = commitment_loss * self.alpha + embedding_loss
 
         # Approximate the entropy of the distribution for which prototypes are used.
         # Here, we just multiply the approximated entropy by 0.05 and add to the loss, but one can vary this weight
         # to induce more or fewer distinct VQ clusters.
         ent = self.get_categorical_ent(dists_to_protos)
-        vq_loss += (0.05 + settings.kl_weight) * ent
+        vq_loss += settings.entropy_weight * ent
 
         # Add the residue back to the latents
         quantized_latents = latents + (quantized_latents - latents).detach()
@@ -53,9 +53,9 @@ class VQLayer(nn.Module):
         return entropy
 
 
-class VQ(nn.Module):
+class VQVIB(nn.Module):
     def __init__(self, input_dim, output_dim, num_layers, num_protos):
-        super(VQ, self).__init__()
+        super(VQVIB, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.hidden_dim = 64
@@ -70,7 +70,6 @@ class VQ(nn.Module):
         self.vq_layer = VQLayer(num_protos, output_dim)
         self.fc_mu = nn.Linear(output_dim, output_dim)
         self.fc_var = nn.Linear(output_dim, output_dim)
-        self.viz_mode = False
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
@@ -78,12 +77,13 @@ class VQ(nn.Module):
             x = F.relu(x)
         logvar = self.fc_var(x)
         mu = self.fc_mu(x)
-        sample = reparameterize(mu, logvar) if not self.viz_mode else mu
+        sample = reparameterize(mu, logvar)
         # Quantize the vectors
-        output, proto_loss = self.vq_layer(sample)
+        output, quantization_loss = self.vq_layer(sample)
         # Compute the KL divergence
         kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
-        total_loss = settings.kl_weight * kld_loss + proto_loss
+        # Total loss is the penalty on complexity plus the quantization (and entropy) losses.
+        total_loss = settings.kl_weight * kld_loss + quantization_loss
         capacity = kld_loss
         return output, total_loss, capacity
 

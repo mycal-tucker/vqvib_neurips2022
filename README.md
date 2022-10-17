@@ -1,17 +1,16 @@
 # vqvib_neurips2022
 Codebase for VQ-VIB implementation and color experiments based on "Trading off Utility, Informativeness, and Complexity in Emergent Communication" NeurIPS 2022.
 
-Below, we provide visualizations for the communication space of VQ-VIB agents (left), and how they discretize their input space (right).
-The top row corresponds to results from a color reference game, while the bottom row comes from training agents to navigate a particle world.
-In both environments, agents learn to discretize the space into increasingly coarse clusters as complexity decreases, and nearby vectors in the communication space encode similar meanings.
+Below, we provide a visualization of how VQ-VIB agents communicated in a color reference game.
+On the left, we visualize communication vectors using 2D PCA.
+On the right, we show the corresponding modemap for how speaker's discretized the color space.
+As complexity increases, the number of VQ-VIB tokens increases, and the color categories become more specific.
 
-|                            PCA of VQ-VIB Comm.                             |                              Modemaps of VQ-VIB                               |
-|:--------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|
-|   ![alt text](gifs/comm_pca.gif "Visualization of VQ-VIB communication")   |    ![alt text](gifs/modemap.gif "Visualization of VQ-VIB color mode maps")    |
-| ![alt text](gifs/uniform_comm.gif "Visualization of VQ-VIB communication") | ![alt text](gifs/uniform_space.gif "Visualization of VQ-VIB color mode maps") |
+ ![alt text](gifs/color.gif "Visualization of VQ-VIB communication")
 
+A similar visualization for communication and space discretization in a particle world (see paper for more details) is provided as `gifs/uniform.gif`.
 
-In this repo, we provide the minimal code to allow you to train agents (including VQ-VIB agents) in a color reference game, reproducing the complexity control from the top figures.
+In this repo, we provide the minimal code to allow you to train agents (including VQ-VIB agents) in a color reference game, reproducing the complexity control from the color gif.
 
 # Getting Started
 
@@ -73,26 +72,25 @@ There should be a folder created for each epoch in training, with a snapshot of 
 E.g., there's PCA of the communication vectors, colored by the color used to generate the communication.
 Or there are plots of capacity and accuracy across all epochs up to that point.
 
-There are also two special folders called 'pca' and 'modemaps' that save snapshots of the PCA of communication and modemaps of colors, respectively.
-These are just copies of images already saved in the incremental snapshots, but it can be easier to visualize the changes in communication by clicking through a single folder.
+There are also two special folders called 'pca' and 'modemaps' that save snapshots during training.
+The `pca` folder tracks 2D PCA of learned communication, and associated modemaps.
+The `modemaps` folder stores ancillary other modemaps, like the closest human modemap.
 
 ## Key settings:
-| Name                     | Description                                                                                                                                |
-|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| comm_dim                 | Dimensionality of communication vectors. For most methods, that allows vectors in, e.g., R^32. For onehot, that specifies how many tokens. |
-| kl_incr                  | By how much to increase the weight of the KL loss every time we update it in training. This is like the annealing step size.               |                                                                                                                                  |
-| obs_noise_var            | Variance of the Gaussian noise used to corrupt the speaker's observation in CIELAB space                                                   |
-| plotting_freq            | How frequently (in epochs) to generate plots for the communications. Plotting can slow things down.                                        |
-| recons_weight            | Weight for reconstruction loss. Try to decode the speaker's observation from the communication. This is lambda_I in the paper.             |
-|                          |                                                                                                                                            |
-|                          |                                                                                                                                            |
-| Other important settings |                                                                                                                                            |
-| vq_loss in vq.py         | Here, we calculate a differentiable approximation over which prototypes are used.                                                          |
-| Speaker class            | We choose the speaker class by just setting the string at the bottom of main.py. Just comment out the one you want.                        |
+| Name                      | Description                                                                                                                                  |
+|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| comm_dim                  | Dimensionality of communication vectors. For most methods, that allows vectors in, e.g., R^32. For onehot, that specifies how many tokens.   |
+| kl_incr                   | By how much to increase the weight of the KL loss every time we update it in training. This is like the annealing step size.                 |                                                                                                                                  |
+| obs_noise_var             | Variance of the Gaussian noise used to corrupt the speaker's observation in CIELAB space                                                     |
+| plotting_freq             | How frequently (in epochs) to generate plots for the communications. Plotting can slow things down.                                          |
+| recons_weight             | Weight for reconstruction loss. Try to decode the speaker's observation from the communication. This is lambda_I in the paper.               |                                                                                                                                        |
+| settings.entropy_weight   | This sets by how much to penalize the (approximated) categorical entropy of VQVIB tokens.                                                    |
+| Speaker class             | We choose the speaker class by just setting the string at the bottom of main.py. Just comment out the one you want.                          |
 
 ## Code Structure
 
-There's one main script that does the training.
+There's one main script, `main.py`, that does the training.
+There's another script, `plot_results.py`, that can generate some useful plots across trials, like informativeness and complexity.
 
 The models are all under models. The ``team`` in team.py brings together a speaker, listener, and decoder.
 The other modules are mostly just different architectures for different types of communication.
@@ -109,7 +107,7 @@ The current "solution" is to just not call that code often.
 Below, we list (some of) the ways one can induce interesting new behaviors by changing just a few hyperparameters.
 
 1) Change ``recons_weight`` to measure the effect of our informativeness loss. Greater weights should induce faster convergence to greater complexity and informativeness.
-2) Within ``vq.py`` change the weight penalizing the categorical entropy loss, as discussed in Section 3.2.4 of the NeurIPS paper. In theory, a small weight is sufficient to bias agents to lower-entropy naming patterns. Greater weights induce lower entropy but also start affecting complexity. Further investigation of complexity and categorical entropy losses could be interesting.
+2) Change ``settings.entropy_weight``. In theory, a small weight is sufficient to bias agents to lower-entropy naming patterns. Greater weights induce lower entropy but also start affecting complexity. Further investigation of complexity and categorical entropy losses could be interesting, including by annealing the entropy weight.
 
 ## Citation
 

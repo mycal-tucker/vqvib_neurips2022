@@ -1,6 +1,5 @@
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 
 
 class Decoder(nn.Module):
@@ -17,14 +16,10 @@ class Decoder(nn.Module):
             self.layers.append(nn.Linear(in_dim, out_dim))
             in_dim = out_dim
             out_dim = self.hidden_dim
-        self.fc_mu = nn.Linear(self.hidden_dim, recons_dim)
-        self.fc_var = nn.Linear(self.hidden_dim, recons_dim)
+        self.final_layer = nn.Linear(self.hidden_dim, recons_dim)
 
     def forward(self, x):
         for i, layer in enumerate(self.layers):
             x = layer(x)
             x = F.relu(x)
-        # Now output a mu and sigma for reconstruction
-        mu = self.fc_mu(x)
-        logvar = self.fc_var(x)
-        return mu, logvar
+        return self.final_layer(x)
