@@ -183,7 +183,8 @@ def plot_closest_lang(pw_u, savepath):
 
 
 def run():
-    listener = MLP(comm_dim + (num_distractors + 1) * feature_len, (num_distractors + 1), num_layers=2, onehot=False)
+    listener = MLP(comm_dim + (num_distractors + 1) * feature_len, (num_distractors + 1), num_layers=2, onehot=False,
+                   deterministic=True)
     decoder = Decoder(comm_dim, feature_len, num_layers=1)
     model = Team(speaker, listener, decoder)
     model.to(settings.device)
@@ -212,7 +213,7 @@ if __name__ == '__main__':
     settings.pca = None
     settings.entropy_weight = 0.02
     ib_model = ib_naming_model.load_model()
-    seed = 0
+    seed = 1
     torch.manual_seed(seed)
     np.random.seed(seed)
     raw_data, data = get_data(ib_model, batch_size)

@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # E.g., for VQVIB and Onehot, speaker_types = ['VQVIB_', 'Onehot_']
     speaker_types = ['VQVIB_']
     labels = ['VQ-VIB']
-    seeds = [0]  # List the seeds you want to iterate over. E.g., for seeds 0 and 1, set to [0, 1]
+    seeds = [1]  # List the seeds you want to iterate over. E.g., for seeds 0 and 1, set to [0, 1]
 
     ib_model = ib_naming_model.load_model()
     settings.device = 'cpu'

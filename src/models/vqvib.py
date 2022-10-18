@@ -81,11 +81,10 @@ class VQVIB(nn.Module):
         # Quantize the vectors
         output, quantization_loss = self.vq_layer(sample)
         # Compute the KL divergence
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
+        divergence = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
         # Total loss is the penalty on complexity plus the quantization (and entropy) losses.
-        total_loss = settings.kl_weight * kld_loss + quantization_loss
-        capacity = kld_loss
-        return output, total_loss, capacity
+        total_loss = settings.kl_weight * divergence + quantization_loss
+        return output, total_loss, divergence
 
     # Helper method calculates the distribution over prototypes given an input. It largely recreates the forward pass
     # but is slightly faster because it does not compute categorical entropy.

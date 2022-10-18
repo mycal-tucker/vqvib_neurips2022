@@ -32,9 +32,9 @@ class ProtoNetwork(nn.Module):
         onehot_pred = gumbel_softmax(x, hard=True)
         proto = torch.matmul(onehot_pred, self.prototypes)
         logvar = self.fc_var(x)
+        # Sample around the prototype
         output = reparameterize(proto, logvar)
         # Compute the KL divergence
-        kld_loss = torch.mean(-0.5 * torch.sum(1 + logvar - proto ** 2 - logvar.exp(), dim=1), dim=0)
-        total_loss = settings.kl_weight * kld_loss
-        capacity = kld_loss
-        return output, total_loss, capacity
+        divergence = torch.mean(-0.5 * torch.sum(1 + logvar - proto ** 2 - logvar.exp(), dim=1), dim=0)
+        total_loss = settings.kl_weight * divergence
+        return output, total_loss, divergence
