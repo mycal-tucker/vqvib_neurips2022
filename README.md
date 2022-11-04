@@ -76,6 +76,16 @@ There are also two special folders called 'pca' and 'modemaps' that save snapsho
 The `pca` folder tracks 2D PCA of learned communication, and associated modemaps.
 The `modemaps` folder stores ancillary other modemaps, like the closest human modemap.
 
+You can plot data from multiple trials and architectures using the ``src/scripts/plot_results.py`` script.
+Just edit the script to load the relevant models and seeds you'd like to compare.
+For example, using VQ-VIB with random seed 1 over 200 epochs (as set up in ``main.py``), we generated a similar range of complexity and informativeness values as WCS languages.
+Running ``plot_results.py`` will generate ``info.png`` with the following plot:
+
+
+ ![alt text](info_example.png "Informativeness and Complexity of VQ-VIB communication, compared to human languages")
+
+
+
 ## Key settings:
 | Name                      | Description                                                                                                                                  |
 |---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -112,6 +122,16 @@ Below, we list (some of) the ways one can induce interesting new behaviors by ch
 ## Citation
 
 If you found this code useful, please cite the NeurIPS paper!
-
+```
+  @inproceedings{
+  tucker2022trading,
+  title={Trading off Utility, Informativeness, and Complexity in Emergent Communication},
+  author={Mycal Tucker and Roger P. Levy and Julie Shah and Noga Zaslavsky},
+  booktitle={Advances in Neural Information Processing Systems},
+  editor={Alice H. Oh and Alekh Agarwal and Danielle Belgrave and Kyunghyun Cho},
+  year={2022},
+  url={https://openreview.net/forum?id=O5arhQvBdH}
+}
+```
 If you have questions, please reach out to Mycal Tucker at mycal@mit.edu.
 

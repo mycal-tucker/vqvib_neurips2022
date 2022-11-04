@@ -7,21 +7,18 @@ import numpy as np
 
 """
 MLP class implements common multi-layer perceptron capabilities. The output can be continuous (real-valued) or onehot
-(using gumbel softmax) and variational (by sampling from some distribution) or deterministic (by just outputting the
-means of what would have been the sampling distribution). This common framework therefore allows this single class to
-be used by continuous speakers (sampling via mu, sigma), onehot speakers (sampling via onehot), and listeners (using
-the continuous output, mu, as the overall output with no sampling).
+(using gumbel softmax). This common framework therefore allows this single class to be used by continuous speakers
+(sampling via mu, sigma) or onehot speakers (sampling via gumbel).
 """
 
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, output_dim, num_layers, onehot, deterministic=False):
+    def __init__(self, input_dim, output_dim, num_layers, onehot):
         super(MLP, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.hidden_dim = 64
         self.onehot = onehot
-        self.deterministic = deterministic
         self.num_tokens = output_dim
         in_dim = input_dim
         out_dim = self.hidden_dim if num_layers > 1 else output_dim
@@ -42,12 +39,10 @@ class MLP(nn.Module):
         if not self.onehot:
             mu = self.fc_mu(x)
             logvar = self.fc_var(x)
-            # For a deterministic model, we can just treat mu as a standard output.
-            output = reparameterize(mu, logvar) if not self.deterministic else mu
-            # For a fixed, unit gaussian
+            output = reparameterize(mu, logvar)
+            # Divergence from a fixed, unit gaussian
             divergence = torch.mean(-0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp(), dim=1), dim=0)
         else:
-            assert not self.deterministic, "Did not implement deterministic onehot. Could be done via argmax."
             output, dist = gumbel_softmax(x, hard=True, return_dist=True)
             logits = dist.log()  # Needs the log of the input
             prior = torch.ones_like(logits) / logits.shape[1]  # Assume uniform prior

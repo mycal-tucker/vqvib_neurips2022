@@ -1,4 +1,5 @@
 import os
+import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,12 +11,13 @@ import src.settings as settings
 from ib_color_naming.src import ib_naming_model
 from ib_color_naming.src.tools import gNID
 from src.models.decoder import Decoder
+from src.models.listener import Listener
 from src.models.mlp import MLP
 from src.models.proto import ProtoNetwork
 from src.models.team import Team
 from src.models.vqvib import VQVIB
-from src.utils.performance_metrics import PerformanceMetrics
 from src.utils.helper_fns import get_complexity, get_data
+from src.utils.performance_metrics import PerformanceMetrics
 from src.utils.plotting import plot_training_curve, plot_comms_pca, plot_modemap
 
 
@@ -101,7 +103,7 @@ def train(model, raw_data, data, save_dir):
 def eval_comms(speaker, data, base_path, epoch_number):
     # Inducing a consistent visualization that's useful across epochs is tough. Here, we set when to reset the PCA
     # for visualizing communication, but one can clearly change this condition.
-    if epoch_number % 10 == 0:
+    if epoch_number % 10 == 0 and epoch_number < 75:
         settings.pca = None
     w_m = np.zeros((330, speaker.num_tokens))
     bs = 1000  # How many samples for a single color. Higher is more accurate but slower.
@@ -113,6 +115,9 @@ def eval_comms(speaker, data, base_path, epoch_number):
         with torch.no_grad():
             likelihoods = speaker.get_token_dist(features)
             w_m[c1 - 1] = likelihoods
+    # Save the probabilities, which can be useful for post-processing scripts.
+    with open(base_path + 'pw_m', 'wb') as file:
+        pickle.dump(w_m, file)
     # Calculate the divergence from the marginal over tokens. Here we just calculate the marginal
     # from observations. It's very important to weight by the prior.
     comp = get_complexity(w_m, ib_model)
@@ -133,9 +138,9 @@ def eval_comms(speaker, data, base_path, epoch_number):
     plt.close()
     # Also plot interesting other modemaps if you would like
     # What is the modemap of the optimal system at that complexity.
-    # plot_modemap(qw_m_fit, ib_model, title='Optimal IB System', filename=base_path + '/../modemaps/optimal_' + str(epoch_number) + '.png')
+    plot_modemap(qw_m_fit, ib_model, title='Optimal IB System', filename=base_path + '/../modemaps/optimal_' + str(epoch_number) + '.png')
     # What is the modemap of the nearest human language (by gNID)
-    # plot_closest_lang(w_m, base_path + '/../modemaps/human_' + str(epoch_number) + '.pdf')
+    plot_closest_lang(w_m, base_path + '/../modemaps/human_' + str(epoch_number) + '.png')
 
     # Measure how often being closer in the color space means being closer in comm space.
     colors = []
@@ -183,8 +188,7 @@ def plot_closest_lang(pw_u, savepath):
 
 
 def run():
-    listener = MLP(comm_dim + (num_distractors + 1) * feature_len, (num_distractors + 1), num_layers=2, onehot=False,
-                   deterministic=True)
+    listener = Listener(comm_dim + (num_distractors + 1) * feature_len, num_distractors + 1)
     decoder = Decoder(comm_dim, feature_len, num_layers=1)
     model = Team(speaker, listener, decoder)
     model.to(settings.device)
@@ -229,7 +233,6 @@ if __name__ == '__main__':
         comm_dim = 330  # The vocabulary size of onehot agents is tied to the comm_dim
         speaker = MLP(feature_len, comm_dim, num_layers=3, onehot=True)
         kl_incr = 0.1
-        settings.kl_weight = 0.05  # Seems to need a greater value to prevent numerical issues when annealing starts.
     elif speaker_type == 'Proto':
         speaker = ProtoNetwork(feature_len, comm_dim, num_layers=3, num_protos=330)
         kl_incr = 0.1

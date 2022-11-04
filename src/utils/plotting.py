@@ -84,7 +84,7 @@ def plot_many_runs(metric_objects, path, labels=None, ib_model=None, human_data=
         informativeness = ib_model.accuracy(lang_probs)  # Already in bits
         human_comps.append(comp)
         human_infos.append(informativeness)
-    plt.scatter(human_comps, human_infos, label='WCS Languages')
+    plt.scatter(human_comps, human_infos, label='Human Languages')
     # Plot Informativeness vs. complexity
     for i, metrics in enumerate(metric_objects):
         caps = [nat_to_bit(c) for c in metrics.capacities]
